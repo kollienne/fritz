@@ -24,7 +24,7 @@ struct Cli {
 enum Commands {
     #[command(arg_required_else_help = true)]
     Add {
-        pkg: String,
+        pkg: Vec<String>,
     }
 }
 
@@ -151,8 +151,8 @@ fn main() {
     let cli_args = Cli::parse();
     match cli_args.command {
         Commands::Add {pkg} => {
-            println!("Adding package {}", pkg);
-            let new_str = match addtoarr_aux(&current_packages, vec![pkg]) {
+            println!("Adding package {:?}", pkg);
+            let new_str = match addtoarr_aux(&current_packages, pkg) {
                 Some(new_str) => new_str,
                 None => {
                     eprintln!("error adding package");
