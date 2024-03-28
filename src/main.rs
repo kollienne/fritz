@@ -4,6 +4,7 @@ use figment::{Figment, providers::{Serialized, Toml, Env, Format}};
 use rnix::{self, SyntaxKind, SyntaxNode};
 use nix_editor;
 use std::fs;
+use itertools::Itertools;
 
 #[derive(Parser, Debug, Serialize, Deserialize)]
 #[command(version, about, long_about = None)]
@@ -24,7 +25,7 @@ struct Cli {
 enum Commands {
     #[command(arg_required_else_help = true)]
     Add {
-        pkg: Vec<String>,
+        packages: Vec<String>,
     }
 }
 
@@ -126,6 +127,18 @@ fn addtoarr_aux(node: &SyntaxNode, items: Vec<String>) -> Option<SyntaxNode> {
     None
 }
 
+fn config_subset_not_present(packages: &Vec<String>, config: &SyntaxNode) -> Option<Vec<String>> {
+    let config_str = config.to_string();
+
+    let subset = packages.iter().unique().filter(|x| !config_str.contains(*x)).cloned().collect::<Vec<String>>();
+    println!("returning subset: {:?}", subset);
+    if subset.len() > 0 {
+        Some(subset)
+    } else {
+        None
+    }
+}
+
 fn main() {
     let config:Config = Figment::new()
         .merge(Serialized::defaults(Config::default()))
@@ -146,20 +159,27 @@ fn main() {
     };
 
     println!("current packages: {}", current_packages);
-    let current_packages_string = current_packages.to_string();
 
     let cli_args = Cli::parse();
     match cli_args.command {
-        Commands::Add {pkg} => {
-            println!("Adding package {:?}", pkg);
-            let new_str = match addtoarr_aux(&current_packages, pkg) {
-                Some(new_str) => new_str,
+        Commands::Add {packages} => {
+            println!("Trying to add package(s) {:?}", packages);
+            match config_subset_not_present(&packages, &current_packages) {
+                Some(package_subset) => {
+                    println!("adding subset: {:?}", package_subset);
+                    let new_str = match addtoarr_aux(&current_packages, package_subset) {
+                        Some(new_str) => new_str,
+                        None => {
+                            eprintln!("error adding package");
+                            std::process::exit(1);
+                        }
+                    };
+                    println!("{}", new_str);
+                },
                 None => {
-                    eprintln!("error adding package");
-                    std::process::exit(1);
+                    println!("All packages already present")
                 }
             };
-            println!("{}", new_str);
         }
     }
 }
