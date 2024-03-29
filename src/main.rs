@@ -37,7 +37,7 @@ impl Default for Config {
         Config {
             hm_config_file: "./home.nix".into(),
             cache_file_path: "./nixpkgs_cache.json".into(),
-            max_cache_age: "30m".to_string(),
+            max_cache_age: "12h".to_string(),
             num_print: 10
         }
     }
