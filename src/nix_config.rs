@@ -5,6 +5,7 @@ use log::info;
 use itertools::Itertools;
 
 use crate::AppConfig;
+use crate::cache::get_cache;
 
 pub fn get_nix_config(app_config: &AppConfig) -> NixConfig {
     info!("reading config file: {}", app_config.hm_config_file);
@@ -19,11 +20,13 @@ pub fn get_nix_config(app_config: &AppConfig) -> NixConfig {
         },
     };
     NixConfig {
+        app_config: app_config.clone(),
         current_packages
     }
 }
 
 pub struct NixConfig {
+    app_config: AppConfig,
     current_packages: SyntaxNode,
 }
 
@@ -31,12 +34,19 @@ impl NixConfig {
     fn initialise() {
     }
 
-    pub fn add_package(self, packages: &Vec<String>) {
+    fn get_full_package_name(self, short_name: String) {
+        let cache = get_cache(&self.app_config);
+    }
+
+    pub fn add_packages(self, packages: &Vec<String>) {
         println!("Trying to add package(s) {:?}", packages);
         println!("current packages: {}", &self.current_packages);
         match Self::config_subset_not_present(&packages, &self.current_packages) {
             Some(package_subset) => {
-                info!("adding subset: {:?}", package_subset);
+                info!("adding subset: {:?}", &package_subset);
+                for package in &package_subset {
+                    
+                }
                 let new_str = match addtoarr_aux(&self.current_packages, package_subset) {
                     Some(new_str) => new_str,
                     None => {

@@ -4,7 +4,7 @@ use std::time::Duration;
 // use duration_string::DurationString;
 use figment::{Figment, providers::{Serialized, Toml, Env, Format}};
 
-#[derive(Parser, Debug, Serialize, Deserialize)]
+#[derive(Parser, Debug, Serialize, Deserialize, Clone)]
 #[command(version, about, long_about = None)]
 pub struct AppConfig {
     #[arg(short, long)]

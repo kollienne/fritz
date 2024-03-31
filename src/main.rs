@@ -8,6 +8,7 @@ use colored::*;
 mod search;
 mod app_config;
 mod nix_config;
+mod cache;
 use crate::nix_config::get_nix_config;
 use crate::app_config::AppConfig;
 use crate::search::SearchResult;
@@ -48,7 +49,7 @@ fn main() {
     match cli_args.command {
         Commands::Add {packages} => {
             let nix_config = get_nix_config(&app_config);
-            nix_config.add_package(&packages);
+            nix_config.add_packages(&packages);
         },
         Commands::Search { strings } => {
             info!("running search");
