@@ -10,7 +10,7 @@ use std::rc::Rc;
 use std::time::SystemTime;
 use std::time::Duration;
 use std::process::Command;
-use crate::config::Config;
+use crate::app_config::AppConfig;
 use duration_string::DurationString;
 use log::{info,error};
 
@@ -64,7 +64,7 @@ fn score_result(key: &String, result: &SearchResultInternal, search_strings: &Ve
     }
 }
 
-pub fn search_cache(strings: &Vec<String>, config: &Config) -> Vec<SearchResult> {
+pub fn search_cache(strings: &Vec<String>, config: &AppConfig) -> Vec<SearchResult> {
     let max_cache_duration = config.max_cache_age.parse::<DurationString>().unwrap().into();
     let cache = get_cache(&config.cache_file_path, max_cache_duration).unwrap();
     info!("cache: {:?}", cache["legacyPackages.x86_64-linux.AMB-plugins"]);
