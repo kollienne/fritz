@@ -22,8 +22,7 @@ pub struct SearchResult {
 
 pub fn search_cache(strings: &Vec<String>, config: &AppConfig) -> Vec<SearchResult> {
     let cache = get_cache(&config).unwrap();
-    info!("cache: {:?}", cache["legacyPackages.x86_64-linux.AMB-plugins"]);
-    let mut matching_results: Vec<SearchResult> = cache.iter().filter_map(|(key, result)| score_result(key, result, &strings)).collect();
+    let mut matching_results: Vec<SearchResult> = cache.package_iter().filter_map(|(key, result)| score_result(key, result, &strings)).collect();
     matching_results.sort_by(|a, b| b.desc_score.partial_cmp(&a.desc_score).unwrap());
     matching_results.sort_by(|a, b| b.key_score.partial_cmp(&a.key_score).unwrap());
     info!("{} matching results", matching_results.len());

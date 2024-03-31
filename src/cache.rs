@@ -25,6 +25,12 @@ pub struct Cache {
     nixpkgs: HashMap<String, CacheEntry>,
 }
 
+impl Cache {
+    pub fn package_iter<'a>(&'a self) -> std::collections::hash_map::Iter::<'a, String, CacheEntry> {
+        self.nixpkgs.iter()
+    }
+}
+
 fn read_cache(cache_file_path: &Path) -> Result<HashMap<String, CacheEntry>, String> {
     let nixpkgs_cache = match fs::read_to_string(cache_file_path) {
         Ok(x) => x,
@@ -80,7 +86,8 @@ fn get_nixpkgs_json() -> Result<HashMap<String, CacheEntry>, String> {
     Ok(nixpkgs)
 }
 
-pub fn get_cache(config: &AppConfig) -> Result<HashMap<String, CacheEntry>, String> {
+// pub fn get_cache(config: &AppConfig) -> Result<HashMap<String, CacheEntry>, String> {
+pub fn get_cache(config: &AppConfig) -> Result<Cache, String> {
     let max_cache_age = config.max_cache_age.parse::<DurationString>().unwrap().into();
     let cache_path_str = &config.cache_file_path;
     info!("attempting to read cache: {}", &cache_path_str);
@@ -92,7 +99,7 @@ pub fn get_cache(config: &AppConfig) -> Result<HashMap<String, CacheEntry>, Stri
             return Err(format!("Failed to check path {}", cache_path_str));
         }
     };
-    let cache = if cache_exists {
+    let nixpkgs = if cache_exists {
         info!("cache exists");
         // If it's old, update it and return it
         let cache_metadata = cache_path.metadata().expect("Failed to read metadata from cache");
@@ -111,5 +118,8 @@ pub fn get_cache(config: &AppConfig) -> Result<HashMap<String, CacheEntry>, Stri
         update_cache(cache_path)
     };
     // If we couldn't read it (but it existed) or we couldn't create it, error.
-    cache
+    match nixpkgs {
+        Ok(nixpkgs) => { Ok(Cache {nixpkgs}) },
+        Err(e) => { Err(format!("Could not read cache: '{}'", e)) }
+    }
 }
