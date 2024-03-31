@@ -1,7 +1,7 @@
 use rnix::{self, SyntaxKind, SyntaxNode};
 use std::fs;
 use nix_editor;
-use log::info;
+use log::{info,error};
 use itertools::Itertools;
 
 use crate::AppConfig;
@@ -31,24 +31,39 @@ pub struct NixConfig {
 }
 
 impl NixConfig {
-    fn initialise() {
+    fn get_full_package_name(&self, short_name: &String) -> Option<String> {
+        let cache = get_cache(&self.app_config).unwrap();
+        // info!("{:?}", cache.nixpkgs["legacyPackages.x86_64-linux.AMB-plugins"]);
+
+        if cache.nixpkgs.contains_key(short_name) {
+            // exact match
+            Some(short_name.clone())
+        } else {
+            // try pkgs.{short_name}
+            let test_str = format!("pkgs.{}", short_name);
+            if cache.nixpkgs.contains_key(&test_str) {
+                info!("found full package name for '{}': {}", short_name, test_str);
+                Some(test_str)
+            } else {
+                error!("no full package name found for '{}'", short_name);
+                None
+            }
+        }
     }
 
-    fn get_full_package_name(self, short_name: String) {
-        let cache = get_cache(&self.app_config);
-    }
-
-    pub fn add_packages(self, packages: &Vec<String>) {
+    pub fn add_packages(&self, packages: &Vec<String>) {
         println!("Trying to add package(s) {:?}", packages);
         println!("current packages: {}", &self.current_packages);
         match Self::config_subset_not_present(&packages, &self.current_packages) {
             Some(package_subset) => {
                 info!("adding subset: {:?}", &package_subset);
-                for package in &package_subset {
-                    
-                }
-                let new_str = match addtoarr_aux(&self.current_packages, package_subset) {
-                    Some(new_str) => new_str,
+                let full_package_set: Vec<String> = package_subset.iter().filter_map(
+                    |short_name| {
+                        self.get_full_package_name(short_name)
+                    }
+                ).collect();
+                let new_str = match addtoarr_aux(&self.current_packages, full_package_set) {
+                Some(new_str) => new_str,
                     None => {
                         eprintln!("error adding package");
                         std::process::exit(1);

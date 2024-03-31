@@ -22,7 +22,7 @@ pub struct CacheEntry {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Cache {
-    nixpkgs: HashMap<String, CacheEntry>,
+    pub nixpkgs: HashMap<String, CacheEntry>,
 }
 
 impl Cache {
@@ -33,7 +33,7 @@ impl Cache {
 
 fn read_cache(cache_file_path: &Path) -> Result<HashMap<String, CacheEntry>, String> {
     let nixpkgs_cache = match fs::read_to_string(cache_file_path) {
-        Ok(x) => x,
+        Ok(x) => x.replace("legacyPackages.x86_64-linux", "pkgs"),
         Err(err) => {
             eprintln!("error reading nixpkg cache: {}", err);
             return Err("Couldn't read cache".to_string());
