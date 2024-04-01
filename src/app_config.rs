@@ -23,7 +23,7 @@ impl Default for AppConfig {
             hm_config_file: "./home.nix".into(),
             cache_file_path: "./nixpkgs_cache.json".into(),
             max_cache_age: "12h".to_string(),
-            num_print: 10
+            num_print: 10,
         }
     }
 }

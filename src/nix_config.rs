@@ -35,11 +35,11 @@ fn update_config_file(config_file_path: &String, new_str: &String) {
     let mut config_file = match File::create(config_file_path) {
         Ok(x) => x,
         Err(e) => {
-            error!("Could not write config file: {}", config_file_path);
+            error!("Could not write config file {}: {}", config_file_path, e);
             return
         }
     };
-    config_file.write_all(new_str.as_bytes());
+    let _ = config_file.write_all(new_str.as_bytes());
 }
 
 
@@ -64,9 +64,8 @@ impl NixConfig {
         }
     }
 
-    pub fn add_packages(&self, packages: &Vec<String>, cache: &Cache) {
+    pub fn add_packages(&self, packages: &Vec<String>, cache: &Cache, dry_run: bool) {
         println!("Trying to add package(s) {:?}", packages);
-        println!("current packages: {}", &self.current_packages);
         let full_package_set: Vec<String> = packages.iter().filter_map(
             |short_name| {
                 self.get_full_package_name(short_name, cache)
@@ -92,9 +91,13 @@ impl NixConfig {
                         std::process::exit(1);
                     }
                 };
-                info!("{}", new_str);
+                info!("updating config file: {}", self.app_config.hm_config_file);
                 // replace config with new_str, then commit with git.
-                update_config_file(&self.app_config.hm_config_file, &new_str.to_string());
+                if !dry_run {
+                    update_config_file(&self.app_config.hm_config_file, &new_str.to_string());
+                } else {
+                    info!("dry run, not actually updating file");
+                }
             },
             None => {
                 info!("All packages already present")

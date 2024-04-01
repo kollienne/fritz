@@ -18,6 +18,8 @@ use crate::cache::get_cache;
 #[command(name = "add")]
 #[command(about = "Add packages to home-manager config file", long_about = None)]
 struct Cli {
+    #[arg(long)]
+    dry_run: bool,
     #[command(subcommand)]
     command: Commands,
 }
@@ -57,7 +59,7 @@ fn main() {
                     return
                 }
             };
-            nix_config.add_packages(&packages, &cache);
+            nix_config.add_packages(&packages, &cache, cli_args.dry_run);
         },
         Commands::Search { strings } => {
             info!("running search");
