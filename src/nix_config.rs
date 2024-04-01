@@ -1,11 +1,12 @@
 use rnix::{self, SyntaxKind, SyntaxNode};
-use std::fs;
+use std::fs::{File,read_to_string};
+use std::io::{Write,stdin};
 use nix_editor;
 use log::{info,error};
 use itertools::Itertools;
 
 use crate::AppConfig;
-use crate::cache::get_cache;
+use crate::cache::{Cache,get_cache};
 
 pub fn get_nix_config(app_config: &AppConfig) -> NixConfig {
     info!("reading config file: {}", app_config.hm_config_file);
@@ -30,9 +31,21 @@ pub struct NixConfig {
     current_packages: SyntaxNode,
 }
 
+fn update_config_file(config_file_path: &String, new_str: &String) {
+    let mut config_file = match File::create(config_file_path) {
+        Ok(x) => x,
+        Err(e) => {
+            error!("Could not write config file: {}", config_file_path);
+            return
+        }
+    };
+    config_file.write_all(new_str.as_bytes());
+}
+
+
 impl NixConfig {
-    fn get_full_package_name(&self, short_name: &String) -> Option<String> {
-        let cache = get_cache(&self.app_config).unwrap();
+    fn get_full_package_name(&self, short_name: &String, cache: &Cache) -> Option<String> {
+        // let cache = get_cache(&self.app_config).unwrap();
         // info!("{:?}", cache.nixpkgs["legacyPackages.x86_64-linux.AMB-plugins"]);
 
         if cache.nixpkgs.contains_key(short_name) {
@@ -51,18 +64,28 @@ impl NixConfig {
         }
     }
 
-    pub fn add_packages(&self, packages: &Vec<String>) {
+    pub fn add_packages(&self, packages: &Vec<String>, cache: &Cache) {
         println!("Trying to add package(s) {:?}", packages);
         println!("current packages: {}", &self.current_packages);
-        match Self::config_subset_not_present(&packages, &self.current_packages) {
+        let full_package_set: Vec<String> = packages.iter().filter_map(
+            |short_name| {
+                self.get_full_package_name(short_name, cache)
+            }
+        ).collect();
+        // Ask to continue if not everything was found
+        //TODO: mention which packages were not found
+        if full_package_set.len() != packages.len() {
+            println!("Some packages were not found, continue? (Y/N): ");
+            let mut buffer = String::new();
+            stdin().read_line(&mut buffer).unwrap();
+            if buffer.to_lowercase() != "y\n" {
+                return
+            }
+        }
+        match Self::config_subset_not_present(&full_package_set, &self.current_packages) {
             Some(package_subset) => {
                 info!("adding subset: {:?}", &package_subset);
-                let full_package_set: Vec<String> = package_subset.iter().filter_map(
-                    |short_name| {
-                        self.get_full_package_name(short_name)
-                    }
-                ).collect();
-                let new_str = match addtoarr_aux(&self.current_packages, full_package_set) {
+                let new_str = match addtoarr_aux(&self.current_packages, package_subset) {
                 Some(new_str) => new_str,
                     None => {
                         eprintln!("error adding package");
@@ -70,6 +93,8 @@ impl NixConfig {
                     }
                 };
                 info!("{}", new_str);
+                // replace config with new_str, then commit with git.
+                update_config_file(&self.app_config.hm_config_file, &new_str.to_string());
             },
             None => {
                 info!("All packages already present")
@@ -148,7 +173,7 @@ fn addtoarr_aux(node: &SyntaxNode, items: Vec<String>) -> Option<SyntaxNode> {
 
 pub fn get_current_packages(config_file: &String) -> Option<SyntaxNode> {
     // let content = fs::read_to_string(config_file)?; 
-    let content = match fs::read_to_string(config_file) {
+    let content = match read_to_string(config_file) {
         Ok(content) => content,
         Err(err) => {
             eprintln!("error reading file: {}", err);

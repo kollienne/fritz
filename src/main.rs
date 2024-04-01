@@ -1,7 +1,7 @@
 use clap::{Parser, Subcommand};
 use figment::{Figment, providers::{Serialized, Toml, Env, Format}};
 use rnix::{self, SyntaxKind, SyntaxNode};
-use log::info;
+use log::{error,info};
 use env_logger;
 use colored::*;
 
@@ -12,6 +12,7 @@ mod cache;
 use crate::nix_config::get_nix_config;
 use crate::app_config::AppConfig;
 use crate::search::SearchResult;
+use crate::cache::get_cache;
 
 #[derive(Parser, Debug)]
 #[command(name = "add")]
@@ -49,7 +50,14 @@ fn main() {
     match cli_args.command {
         Commands::Add {packages} => {
             let nix_config = get_nix_config(&app_config);
-            nix_config.add_packages(&packages);
+            let cache = match get_cache(&app_config) {
+                Ok(x) => x,
+                Err(e) => {
+                    error!("failed to read cache: {}", e);
+                    return
+                }
+            };
+            nix_config.add_packages(&packages, &cache);
         },
         Commands::Search { strings } => {
             info!("running search");
