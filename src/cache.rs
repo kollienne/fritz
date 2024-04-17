@@ -1,11 +1,9 @@
 use serde::{Serialize, Deserialize};
+use rmp_serde;
 use duration_string::DurationString;
 use std::time::SystemTime;
 use std::process::Command;
-use std::rc::Rc;
 use std::path::Path;
-use serde_json::Value;
-use std::time::Duration;
 use std::fs::File;
 use std::io::Write;
 use std::fs;
@@ -37,20 +35,21 @@ impl Cache {
     }
 }
 
-fn read_cache(cache_file_path: &Path) -> Result<HashMap<String, CacheEntry>, String> {
-    let nixpkgs_cache = match fs::read_to_string(cache_file_path) {
-        Ok(x) => x.replace("legacyPackages.x86_64-linux", "pkgs"),
+fn read_cache(cache_file_path: &Path) -> Result<Cache, String> {
+    let nixpkgs_cache = match fs::read(cache_file_path) {
+        Ok(x) => {
+	    let nixpkgs: Cache = rmp_serde::from_slice(&x).unwrap();
+	    Ok(nixpkgs)
+	},
         Err(err) => {
             eprintln!("error reading nixpkg cache: {}", err);
             return Err("Couldn't read cache".to_string());
         }
     };
-
-    let nixpkgs = serde_json::from_str(&nixpkgs_cache).unwrap();
-    Ok(nixpkgs)
+    nixpkgs_cache
 }
 
-fn update_cache(cache_path: &Path, progress_bar: Option<&ProgressBar>) -> Result<HashMap<String, CacheEntry>, String> {
+fn update_cache(cache_path: &Path, progress_bar: Option<&ProgressBar>) -> Result<Cache, String> {
     let nixpkgs_json = match get_nixpkgs_json(progress_bar) {
         Ok(x) => x,
         Err(e) => {
@@ -65,7 +64,7 @@ fn update_cache(cache_path: &Path, progress_bar: Option<&ProgressBar>) -> Result
             return Err(format!("failed to write to cache file: {}", e));
         }
     };
-    match file.write(serde_json::to_string(&nixpkgs_json).unwrap().as_bytes()) {
+    match file.write(&rmp_serde::to_vec(&nixpkgs_json).unwrap()) {
         Ok(_) => {
             info!("successfully wrote cache file");
         },
@@ -77,7 +76,7 @@ fn update_cache(cache_path: &Path, progress_bar: Option<&ProgressBar>) -> Result
     Ok(nixpkgs_json)
 }
 
-fn get_nixpkgs_json(progress_bar: Option<&ProgressBar>) -> Result<HashMap<String, CacheEntry>, String> {
+fn get_nixpkgs_json(progress_bar: Option<&ProgressBar>) -> Result<Cache, String> {
     let search_result = Command::new("nix").arg("search").arg("nixpkgs").arg("--json").arg("^").output();
     if progress_bar.is_some() { progress_bar.unwrap().set_position(PB_START); }
     if progress_bar.is_some() { progress_bar.unwrap().set_message("fetching nixpkgs index"); }
@@ -89,9 +88,10 @@ fn get_nixpkgs_json(progress_bar: Option<&ProgressBar>) -> Result<HashMap<String
     };
     if progress_bar.is_some() { progress_bar.unwrap().set_position(PB_CACHE_FETCHED); }
     if progress_bar.is_some() { progress_bar.unwrap().set_message("parsing nixpkgs"); }
-    // info!("search result: {}", &search_output);
     info!("completed nix search command");
+    let search_output = search_output.replace("legacyPackages.x86_64-linux", "pkgs");
     let nixpkgs = serde_json::from_str(&search_output).unwrap();
+    let nixpkgs = Cache { nixpkgs };
     if progress_bar.is_some() { progress_bar.unwrap().set_position(PB_CACHE_PARSED); }
     Ok(nixpkgs)
 }
@@ -99,8 +99,6 @@ fn get_nixpkgs_json(progress_bar: Option<&ProgressBar>) -> Result<HashMap<String
 pub fn get_cache(config: &AppConfig) -> Result<Cache, String> {
     let progress_bar = ProgressBar::new(PB_NUM_STEPS).with_style(
 	indicatif::ProgressStyle::with_template("[{elapsed_precise}] {bar:40} {pos:>7}/{len:7} {wide_msg}").unwrap());
-    // let progress_bar = ProgressBar::new(5);
-    // progress_bar.set_style(indicatif::ProgressStyle::with_template("[{elapsed_precise}] {bar:40} {pos:>7}/{len:7} {wide_msg}").unwrap());
     let max_cache_age = config.max_cache_age.parse::<DurationString>().unwrap().into();
     let cache_path_str = &config.cache_file_path;
     info!("attempting to read cache: {}", &cache_path_str);
@@ -132,7 +130,7 @@ pub fn get_cache(config: &AppConfig) -> Result<Cache, String> {
     };
     // If we couldn't read it (but it existed) or we couldn't create it, error.
     match nixpkgs {
-        Ok(nixpkgs) => { Ok(Cache {nixpkgs}) },
+        Ok(nixpkgs) => { Ok(nixpkgs) },
         Err(e) => { Err(format!("Could not read cache: '{}'", e)) }
     }
 }

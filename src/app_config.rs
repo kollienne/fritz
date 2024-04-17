@@ -21,7 +21,7 @@ impl Default for AppConfig {
     fn default() -> AppConfig {
         AppConfig {
             hm_config_file: "./home.nix".into(),
-            cache_file_path: "./nixpkgs_cache.json".into(),
+            cache_file_path: "./nixpkgs_cache.msgpack".into(),
             max_cache_age: "12h".to_string(),
             num_print: 10,
         }
