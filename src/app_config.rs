@@ -15,6 +15,8 @@ pub struct AppConfig {
     pub max_cache_age: String,
     #[arg(short, long)]
     pub num_print: usize,
+    #[arg(short, long)]
+    pub num_search_results: usize,
 }
 
 impl Default for AppConfig {
@@ -24,6 +26,7 @@ impl Default for AppConfig {
             cache_file_path: "./nixpkgs_cache.msgpack".into(),
             max_cache_age: "12h".to_string(),
             num_print: 10,
+            num_search_results: 100,
         }
     }
 }
