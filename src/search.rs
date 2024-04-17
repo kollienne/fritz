@@ -37,7 +37,7 @@ fn score_result(key: &String, result: &CacheEntry, search_strings: &Vec<String>)
         if result.description.to_lowercase().contains(string) {
             desc_term_freq += string.len();
         }
-        if result.pname.to_lowercase().contains(string) {
+        if key.to_lowercase().contains(string) {
             key_term_freq += string.len();
         }
     }
@@ -48,7 +48,7 @@ fn score_result(key: &String, result: &CacheEntry, search_strings: &Vec<String>)
             0.0
         };
         let key_score = if key_term_freq > 0 && result.pname.len() > 0 {
-            (key_term_freq as f32) / (result.pname.len() as f32)
+            (key_term_freq as f32) / (key.len() as f32)
         } else {
             0.0
         };
