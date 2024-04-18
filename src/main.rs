@@ -7,6 +7,7 @@ use colored::*;
 use dialoguer::FuzzySelect;
 use regex::Regex;
 use std::cmp::min;
+use std::process::Command;
 
 mod search;
 mod app_config;
@@ -57,6 +58,21 @@ fn get_search_result_choice(results: &[SearchResult], max_length: usize) -> Opti
         .unwrap()
 }
 
+fn run_hm_update() {
+    info!("running home-manager switch");
+    let update_command = Command::new("home-manager").arg("switch").output();
+    match update_command {
+	Ok(x) => {
+	    info!("home-manager switch output: ");
+	    info!("{:?}", x);
+	},
+	Err(e) => {
+	    error!("home-manager switch error! output: ");
+	    error!("{:?}", e);
+	}
+    }
+}
+
 fn main() {
     env_logger::init();
     let app_config: AppConfig = Figment::new()
@@ -77,7 +93,12 @@ fn main() {
                     return
                 }
             };
-            nix_config.add_packages(&packages, &cache, cli_args.dry_run);
+            let change_made = nix_config.add_packages(&packages, &cache, cli_args.dry_run);
+	    if change_made && app_config.hm_switch_afterwards {
+		run_hm_update();
+	    } else {
+		info!("config not changed, not running home-manager switch");
+	    }
         },
         Commands::Search { strings } => {
             info!("running search");

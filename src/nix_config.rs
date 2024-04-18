@@ -64,7 +64,7 @@ impl NixConfig {
         }
     }
 
-    pub fn add_packages(&self, packages: &Vec<String>, cache: &Cache, dry_run: bool) {
+    pub fn add_packages(&self, packages: &Vec<String>, cache: &Cache, dry_run: bool) -> bool {
         println!("Trying to add package(s) {:?}", packages);
         let full_package_set: Vec<String> = packages.iter().filter_map(
             |short_name| {
@@ -78,10 +78,10 @@ impl NixConfig {
             let mut buffer = String::new();
             stdin().read_line(&mut buffer).unwrap();
             if buffer.to_lowercase() != "y\n" {
-                return
+                return false
             }
         }
-        match Self::config_subset_not_present(&full_package_set, &self.current_packages) {
+        let change_made = match Self::config_subset_not_present(&full_package_set, &self.current_packages) {
             Some(package_subset) => {
                 info!("adding subset: {:?}", &package_subset);
                 let new_str = match addtoarr_aux(&self.current_packages, package_subset) {
@@ -95,14 +95,18 @@ impl NixConfig {
                 // replace config with new_str, then commit with git.
                 if !dry_run {
                     update_config_file(&self.app_config.package_config_file, &new_str.to_string());
+		    true
                 } else {
                     info!("dry run, not actually updating file");
+		    false
                 }
             },
             None => {
-                info!("All packages already present")
+                info!("All packages already present");
+		false
             }
-        }
+        };
+	change_made
     }
 
     fn config_subset_not_present(packages: &Vec<String>, config: &SyntaxNode) -> Option<Vec<String>> {
