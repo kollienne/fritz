@@ -1,4 +1,5 @@
 use clap::{Parser, Subcommand};
+use serde::{Serialize, Deserialize};
 use figment::{Figment, providers::{Serialized, Toml, Env, Format}};
 use rnix::{self, SyntaxKind, SyntaxNode};
 use log::{error,info};
@@ -10,6 +11,7 @@ use std::cmp::min;
 use std::process::Command;
 use indicatif::ProgressBar;
 use std::time::Duration;
+use std::env::var;
 
 mod search;
 mod app_config;
@@ -20,17 +22,19 @@ use crate::app_config::AppConfig;
 use crate::search::SearchResult;
 use crate::cache::get_cache;
 
-#[derive(Parser, Debug)]
-#[command(name = "add")]
-#[command(about = "Add packages to home-manager config file", long_about = None)]
+#[derive(Parser, Debug, Serialize, Deserialize)]
+#[command(name = "fritz")]
+#[command(about = "Manage packages in home-manager", long_about = None)]
 struct Cli {
     #[arg(long)]
     dry_run: bool,
+    #[arg(long)]
+    config: Option<String>,
     #[command(subcommand)]
     command: Commands,
 }
 
-#[derive(Debug, Subcommand)]
+#[derive(Debug, Subcommand, Serialize, Deserialize)]
 enum Commands {
     #[command(arg_required_else_help = true)]
     Add {
@@ -106,7 +110,6 @@ fn commit_changes(app_config: &AppConfig) {
     bar.enable_steady_tick(Duration::from_millis(100));
     let args: String = std::env::args().collect::<Vec<String>>().join(" ");
     let commit_msg = format!("fritz package update, command: {}", args);
-    // info!("usign commit message: {}", commit_msg);
     let update_command_output = Command::new("git").arg("commit").arg("-m").arg(commit_msg).current_dir(config_dir).output().expect("failed to run git");
     let update_command_status = update_command_output.status;
     bar.finish();
@@ -137,16 +140,25 @@ fn push_changes(app_config: &AppConfig) {
     }
 }
 
+fn get_default_config_file() -> String {
+    let config_home = var("XDG_CONFIG_HOME").or_else(|_| var("HOME").map(|home| format!("{}/.config", home))).unwrap();
+    format!("{}/fritz/config.toml", config_home)
+}
+
 fn main() {
     env_logger::init();
+    let cli_args = Cli::parse();
+    let config_file = match cli_args.config {
+	Some(x) => x,
+	None => { get_default_config_file() }
+    };
+    info!("using config file: {}", config_file);
     let app_config: AppConfig = Figment::new()
         .merge(Serialized::defaults(AppConfig::default()))
-        .merge(Toml::file("Config.toml"))
-        .merge(Env::prefixed("APP_"))
+        .merge(Toml::file(config_file))
+        .merge(Env::prefixed("FRITZ_"))
         .extract().unwrap();
 
-
-    let cli_args = Cli::parse();
     match cli_args.command {
         Commands::Add {packages} => {
             let nix_config = get_nix_config(&app_config);
@@ -158,18 +170,20 @@ fn main() {
                 }
             };
             let change_made = nix_config.add_packages(&packages, &cache, cli_args.dry_run);
-	    if change_made {
-		match app_config.hm_switch_afterwards {
+	    if change_made && !cli_args.dry_run {
+		match app_config.hm_switch {
 		    true => { run_hm_update(); },
 		    false => { info!("home-manager switch is disabled") }
 		}
 		match app_config.commit_change {
-		    true => { commit_changes(&app_config); },
+		    true => {
+			commit_changes(&app_config);
+			match app_config.push_change {
+			    true => { push_changes(&app_config); },
+			    false => { info!("pushing config changes is disabled") }
+			}
+		    },
 		    false => { info!("committing config changes is disabled") }
-		}
-		match app_config.push_change {
-		    true => { push_changes(&app_config); },
-		    false => { info!("pushing config changes is disabled") }
 		}
 	    } else {
 		info!("config was not changed");
