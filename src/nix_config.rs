@@ -1,6 +1,7 @@
 use rnix::{self, SyntaxKind, SyntaxNode};
 use std::fs::{File,read_to_string};
 use std::io::{Write,stdin};
+use std::collections::HashSet;
 use nix_editor;
 use log::{info,error};
 use itertools::Itertools;
@@ -42,12 +43,24 @@ fn update_config_file(config_file_path: &String, new_str: &String) {
     let _ = config_file.write_all(new_str.as_bytes());
 }
 
+fn config_contains_key(node: &SyntaxNode, item: &String) -> bool {
+    for child in node.children() {
+	if child.kind() == rnix::SyntaxKind::NODE_WITH {
+	    return config_contains_key(&child, item);
+	}
+	if child.kind() == SyntaxKind::NODE_LIST {
+	    for c in child.green().children() {
+		if c.to_string().eq(item) {
+		    return true
+		}
+	    }
+	}
+    }
+    false
+}
 
 impl NixConfig {
     fn get_full_package_name(&self, short_name: &String, cache: &Cache) -> Option<String> {
-        // let cache = get_cache(&self.app_config).unwrap();
-        // info!("{:?}", cache.nixpkgs["legacyPackages.x86_64-linux.AMB-plugins"]);
-
         if cache.nixpkgs.contains_key(short_name) {
             // exact match
             Some(short_name.clone())
@@ -62,6 +75,22 @@ impl NixConfig {
                 None
             }
         }
+    }
+
+    fn get_full_package_name_from_config(&self, short_name: &String) -> Option<String> {
+	if config_contains_key(&self.current_packages, short_name) {
+	    info!("found full package name for '{}': {}", short_name, short_name);
+            Some(short_name.clone())
+	} else {
+            let test_str = format!("pkgs.{}", short_name);
+	    if config_contains_key(&self.current_packages, &test_str) {
+                info!("found full package name for '{}': {}", short_name, &test_str);
+		Some(test_str)
+	    } else {
+                error!("no full package name found for '{}'", short_name);
+		None
+	    }
+	}
     }
 
     pub fn add_packages(&self, packages: &Vec<String>, cache: &Cache, dry_run: bool) -> bool {
@@ -105,6 +134,60 @@ impl NixConfig {
                 info!("All packages already present");
 		false
             }
+        };
+	change_made
+    }
+
+    fn get_package_subset_in_config(&self, packages: &Vec<String>) -> (Vec<String>,Vec<String>) {
+	let mut found_subset = vec![];
+	let mut not_found_subset = vec![];
+	for try_package in packages {
+	    match self.get_full_package_name_from_config(try_package) {
+		Some(x) => { found_subset.push(x.clone()) },
+		None => { not_found_subset.push(try_package.clone()) }
+	    };
+	};
+	(found_subset, not_found_subset)
+    }
+
+    pub fn remove_packages(&self, packages: &Vec<String>, dry_run: bool) -> bool {
+        println!("Trying to remove package(s) {:?}", packages);
+	let (full_package_set, not_found_subset) = self.get_package_subset_in_config(packages);
+        // Ask to continue if not everything was found
+        if full_package_set.len() != packages.len() {
+	    println!("Packages not found: ");
+	    for ps in not_found_subset {
+		print!("{}, ", ps);
+	    }
+	    println!();
+            println!("Some packages were not found, continue? (Y/N): ");
+            let mut buffer = String::new();
+            stdin().read_line(&mut buffer).unwrap();
+            if buffer.to_lowercase() != "y\n" {
+                return false
+            }
+        }
+	let change_made = if packages.len() > 0 {
+	    info!("removing subset: {:?}", &full_package_set);
+	    let new_str = match rmarr_aux(&self.current_packages, &full_package_set) {
+	    Some(new_str) => new_str,
+		None => {
+		    eprintln!("error removing package");
+		    std::process::exit(1);
+		}
+	    };
+	    info!("updating config file: {}", self.app_config.package_config_file);
+	    // replace config with new_str, then commit with git.
+	    if !dry_run {
+		update_config_file(&self.app_config.package_config_file, &new_str.to_string());
+		true
+	    } else {
+		info!("dry run, not actually updating file");
+		false
+	    }
+	} else {
+	    info!("All packages already present");
+	    false
         };
 	change_made
     }
@@ -177,6 +260,60 @@ fn addtoarr_aux(node: &SyntaxNode, items: Vec<String>) -> Option<SyntaxNode> {
     }
     None
 }
+
+// borowwed from github.com/snowfallorg/nix-editor
+fn rmarr_aux(node: &SyntaxNode, items: &Vec<String>) -> Option<SyntaxNode> {
+    for child in node.children() {
+        if child.kind() == rnix::SyntaxKind::NODE_WITH {
+            return rmarr_aux(&child, items);
+        }
+        if child.kind() == SyntaxKind::NODE_LIST {
+            let green = child.green().into_owned();
+            let mut idx = vec![];
+            for elem in green.children() {
+                if elem.as_node().is_some() && items.contains(&elem.to_string()) {
+                    let index = match green.children().position(|x| match x.into_node() {
+                        Some(x) => {
+                            if let Some(y) = elem.as_node() {
+                                x.eq(y)
+                            } else {
+                                false
+                            }
+                        }
+                        None => false,
+                    }) {
+                        Some(x) => x,
+                        None => return None,
+                    };
+                    idx.push(index)
+                }
+            }
+            let mut acc = 0;
+            let mut replace = green;
+
+            for i in idx {
+                replace = replace.remove_child(i - acc);
+                let mut v = vec![];
+                for c in replace.children() {
+                    v.push(c);
+                }
+                if let Some(x) = v.get(i - acc - 1).unwrap().as_token() {
+                    if x.to_string().contains('\n') {
+                        replace = replace.remove_child(i - acc - 1);
+                        acc += 1;
+                    }
+                }
+                acc += 1;
+            }
+            let out = child.replace_with(replace);
+
+            let output = rnix::Root::parse(&out.to_string()).syntax();
+            return Some(output);
+        }
+    }
+    None
+}
+
 
 pub fn get_current_packages(config_file: &String) -> Option<SyntaxNode> {
     // let content = fs::read_to_string(config_file)?; 

@@ -40,6 +40,10 @@ enum Commands {
     Add {
         packages: Vec<String>,
     },
+    #[command(arg_required_else_help = true)]
+    Rm {
+        packages: Vec<String>,
+    },
     Search {
         strings: Vec<String>,
     }
@@ -145,11 +149,64 @@ fn get_default_config_file() -> String {
     format!("{}/fritz/config.toml", config_home)
 }
 
+fn remove_packages(packages: &Vec<String>, app_config: &AppConfig, cli_args: &Cli) {
+    let nix_config = get_nix_config(&app_config);
+    let change_made = nix_config.remove_packages(&packages, cli_args.dry_run);
+    if change_made && !cli_args.dry_run {
+	match app_config.hm_switch {
+	    true => { run_hm_update(); },
+	    false => { info!("home-manager switch is disabled") }
+	}
+	match app_config.commit_change {
+	    true => {
+		commit_changes(&app_config);
+		match app_config.push_change {
+		    true => { push_changes(&app_config); },
+		    false => { info!("pushing config changes is disabled") }
+		}
+	    },
+	    false => { info!("committing config changes is disabled") }
+	}
+    } else {
+	info!("config was not changed");
+    }
+}
+
+fn add_packages(packages: &Vec<String>, app_config: &AppConfig, cli_args: &Cli) {
+    let nix_config = get_nix_config(&app_config);
+    let cache = match get_cache(&app_config) {
+	Ok(x) => x,
+	Err(e) => {
+	    error!("failed to read cache: {}", e);
+	    return
+	}
+    };
+    let change_made = nix_config.add_packages(&packages, &cache, cli_args.dry_run);
+    if change_made && !cli_args.dry_run {
+	match app_config.hm_switch {
+	    true => { run_hm_update(); },
+	    false => { info!("home-manager switch is disabled") }
+	}
+	match app_config.commit_change {
+	    true => {
+		commit_changes(&app_config);
+		match app_config.push_change {
+		    true => { push_changes(&app_config); },
+		    false => { info!("pushing config changes is disabled") }
+		}
+	    },
+	    false => { info!("committing config changes is disabled") }
+	}
+    } else {
+	info!("config was not changed");
+    }
+}
+
 fn main() {
     env_logger::init();
     let cli_args = Cli::parse();
-    let config_file = match cli_args.config {
-	Some(x) => x,
+    let config_file = match &cli_args.config {
+	Some(x) => x.clone(),
 	None => { get_default_config_file() }
     };
     info!("using config file: {}", config_file);
@@ -160,35 +217,8 @@ fn main() {
         .extract().unwrap();
 
     match cli_args.command {
-        Commands::Add {packages} => {
-            let nix_config = get_nix_config(&app_config);
-            let cache = match get_cache(&app_config) {
-                Ok(x) => x,
-                Err(e) => {
-                    error!("failed to read cache: {}", e);
-                    return
-                }
-            };
-            let change_made = nix_config.add_packages(&packages, &cache, cli_args.dry_run);
-	    if change_made && !cli_args.dry_run {
-		match app_config.hm_switch {
-		    true => { run_hm_update(); },
-		    false => { info!("home-manager switch is disabled") }
-		}
-		match app_config.commit_change {
-		    true => {
-			commit_changes(&app_config);
-			match app_config.push_change {
-			    true => { push_changes(&app_config); },
-			    false => { info!("pushing config changes is disabled") }
-			}
-		    },
-		    false => { info!("committing config changes is disabled") }
-		}
-	    } else {
-		info!("config was not changed");
-	    }
-        },
+        Commands::Add {ref packages} => { add_packages(packages, &app_config, &cli_args) },
+        Commands::Rm {ref packages} => { remove_packages(packages, &app_config, &cli_args) },
         Commands::Search { strings } => {
             info!("running search");
             let matching_results = search::search_cache(&strings, &app_config);
