@@ -58,6 +58,16 @@ fn update_cache(cache_path: &Path, progress_bar: Option<&ProgressBar>) -> Result
     };
     info!("saving cache to file: {:?}", cache_path);
     // nixpkgs_json
+    let parent_dir = Path::new(cache_path).parent().unwrap();
+    if !parent_dir.exists() {
+	info!("cache directory '{}' does not exist, creating it.", parent_dir.to_str().unwrap());
+    }
+    match fs::create_dir_all(parent_dir) {
+	    Ok(_) => (),
+	    Err(x) => {
+		error!("{:?}", x);
+	    }
+    };
     let mut file = match File::create(&cache_path) {
         Ok(file) => file,
         Err(e) => {

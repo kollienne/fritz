@@ -9,14 +9,14 @@ use crate::AppConfig;
 use crate::cache::{Cache,get_cache};
 
 pub fn get_nix_config(app_config: &AppConfig) -> NixConfig {
-    info!("reading config file: {}", app_config.hm_config_file);
-    let cf_path = &app_config.hm_config_file;
-    let current_packages = match get_current_packages(&app_config.hm_config_file) {
+    info!("reading config file: {}", app_config.package_config_file);
+    let cf_path = &app_config.package_config_file;
+    let current_packages = match get_current_packages(&app_config.package_config_file) {
         Some(cfg) => {
             cfg
         },
         None => {
-            eprintln!("Unable to read config file {}", app_config.hm_config_file);
+            eprintln!("Unable to read config file {}", app_config.package_config_file);
             std::process::exit(1);
         },
     };
@@ -91,10 +91,10 @@ impl NixConfig {
                         std::process::exit(1);
                     }
                 };
-                info!("updating config file: {}", self.app_config.hm_config_file);
+                info!("updating config file: {}", self.app_config.package_config_file);
                 // replace config with new_str, then commit with git.
                 if !dry_run {
-                    update_config_file(&self.app_config.hm_config_file, &new_str.to_string());
+                    update_config_file(&self.app_config.package_config_file, &new_str.to_string());
                 } else {
                     info!("dry run, not actually updating file");
                 }
