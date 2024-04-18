@@ -87,9 +87,9 @@ fn update_cache(cache_path: &Path, progress_bar: Option<&ProgressBar>) -> Result
 }
 
 fn get_nixpkgs_json(progress_bar: Option<&ProgressBar>) -> Result<Cache, String> {
-    let search_result = Command::new("nix").arg("search").arg("nixpkgs").arg("--json").arg("^").output();
     if progress_bar.is_some() { progress_bar.unwrap().set_position(PB_START); }
     if progress_bar.is_some() { progress_bar.unwrap().set_message("fetching nixpkgs index"); }
+    let search_result = Command::new("nix").arg("search").arg("nixpkgs").arg("--json").arg("^").output();
     let search_output = match search_result {
         Ok(x) => String::from_utf8(x.stdout).unwrap(),
         Err(e) => {

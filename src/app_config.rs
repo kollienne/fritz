@@ -22,6 +22,8 @@ pub struct AppConfig {
     #[arg(short, long)]
     pub commit_change: bool,
     #[arg(short, long)]
+    pub push_change: bool,
+    #[arg(short, long)]
     pub hm_switch_afterwards: bool,
 }
 
@@ -38,6 +40,7 @@ impl Default for AppConfig {
             num_print: 10,
             num_search_results: 10,
 	    commit_change: true,
+	    push_change: true,
 	    hm_switch_afterwards: true
         }
     }

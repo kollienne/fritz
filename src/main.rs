@@ -8,6 +8,8 @@ use dialoguer::FuzzySelect;
 use regex::Regex;
 use std::cmp::min;
 use std::process::Command;
+use indicatif::ProgressBar;
+use std::time::Duration;
 
 mod search;
 mod app_config;
@@ -60,7 +62,10 @@ fn get_search_result_choice(results: &[SearchResult], max_length: usize) -> Opti
 
 fn run_hm_update() {
     info!("running home-manager switch");
+    let bar = ProgressBar::new_spinner();
+    bar.enable_steady_tick(Duration::from_millis(100));
     let update_command = Command::new("home-manager").arg("switch").output();
+    bar.finish();
     match update_command {
 	Ok(x) => {
 	    info!("home-manager switch output: ");
@@ -70,6 +75,65 @@ fn run_hm_update() {
 	    error!("home-manager switch error! output: ");
 	    error!("{:?}", e);
 	}
+    }
+}
+
+fn add_changes(app_config: &AppConfig) {
+    info!("addting config changes");
+    let config_file = std::path::Path::new(&app_config.package_config_file);
+    let config_dir = config_file.parent().unwrap();
+    let bar = ProgressBar::new_spinner();
+    bar.enable_steady_tick(Duration::from_millis(100));
+    let update_command_output = Command::new("git").arg("add").arg(format!("{}", config_file.file_name().unwrap().to_str().unwrap())).current_dir(config_dir).output().expect("failed to run git");
+    let update_command_status = update_command_output.status;
+    bar.finish();
+    if update_command_status.success() {
+	info!("git add output: ");
+	info!("{:?}", &update_command_output.stdout);
+    } else {
+	error!("git add error! ");
+	error!("{:?}", &update_command_output.stderr);
+    }
+}
+
+
+fn commit_changes(app_config: &AppConfig) {
+    add_changes(app_config);
+    info!("committing config changes");
+    let config_file = std::path::Path::new(&app_config.package_config_file);
+    let config_dir = config_file.parent().unwrap();
+    let bar = ProgressBar::new_spinner();
+    bar.enable_steady_tick(Duration::from_millis(100));
+    let args: String = std::env::args().collect::<Vec<String>>().join(" ");
+    let commit_msg = format!("fritz package update, command: {}", args);
+    // info!("usign commit message: {}", commit_msg);
+    let update_command_output = Command::new("git").arg("commit").arg("-m").arg(commit_msg).current_dir(config_dir).output().expect("failed to run git");
+    let update_command_status = update_command_output.status;
+    bar.finish();
+    if update_command_status.success() {
+	info!("git commit output: ");
+	info!("{:?}", &update_command_output.stdout);
+    } else {
+	error!("git commit error! ");
+	error!("{:?}", &update_command_output.stderr);
+    }
+}
+
+fn push_changes(app_config: &AppConfig) {
+    info!("pushing config changes");
+    let bar = ProgressBar::new_spinner();
+    bar.enable_steady_tick(Duration::from_millis(100));
+    let config_file = std::path::Path::new(&app_config.package_config_file);
+    let config_dir = config_file.parent().unwrap();
+    let update_command_output = Command::new("git").arg("push").current_dir(config_dir).output().expect("failed to run git");
+    let update_command_status = update_command_output.status;
+    bar.finish();
+    if update_command_status.success() {
+	info!("git push output: ");
+	info!("{:?}", &update_command_output.stdout);
+    } else {
+	error!("git push error! ");
+	error!("{:?}", &update_command_output.stderr);
     }
 }
 
@@ -94,10 +158,21 @@ fn main() {
                 }
             };
             let change_made = nix_config.add_packages(&packages, &cache, cli_args.dry_run);
-	    if change_made && app_config.hm_switch_afterwards {
-		run_hm_update();
+	    if change_made {
+		match app_config.hm_switch_afterwards {
+		    true => { run_hm_update(); },
+		    false => { info!("home-manager switch is disabled") }
+		}
+		match app_config.commit_change {
+		    true => { commit_changes(&app_config); },
+		    false => { info!("committing config changes is disabled") }
+		}
+		match app_config.push_change {
+		    true => { push_changes(&app_config); },
+		    false => { info!("pushing config changes is disabled") }
+		}
 	    } else {
-		info!("config not changed, not running home-manager switch");
+		info!("config was not changed");
 	    }
         },
         Commands::Search { strings } => {
