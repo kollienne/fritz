@@ -40,8 +40,6 @@ enum Commands {
 
 
 fn pretty_format_result(result: &SearchResult) -> String {
-    // let re = Regex::new(r"^pkgs.").unwrap();
-    // format!("{} \t [{}] \t {}", re.replace(&result.full_key, ""), result.version, result.description)
     format!("{} \t [{}] \t {}", result.full_key, result.version, result.description)
 }
 
@@ -84,19 +82,9 @@ fn main() {
         Commands::Search { strings } => {
             info!("running search");
             let matching_results = search::search_cache(&strings, &app_config);
-	    // let result_choice_num = match get_search_result_choice(&matching_results[0..min(matching_results.len(),app_config.num_search_results)], app_config.num_print) {
-	    // 	Some(x) => x,
-	    // 	None => {
-	    // 	    info!("no package chosen");
-	    // 	    return
-	    // 	}
-	    // };
-	    // let result_choice = &matching_results[result_choice_num];
-	    // println!("chosen search result: ");
 	    for result in &matching_results[0..min(matching_results.len(),app_config.num_search_results)] {
 		pretty_print_result(result);
 	    }
-	    // pretty_print_result(result_choice);
         }
     }
 }
