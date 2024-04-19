@@ -94,7 +94,7 @@ impl NixConfig {
     }
 
     pub fn add_packages(&self, packages: &Vec<String>, cache: &Cache, dry_run: bool) -> bool {
-        println!("Trying to add package(s) {:?}", packages);
+        info!("Trying to add package(s) {:?}", packages);
         let full_package_set: Vec<String> = packages.iter().filter_map(
             |short_name| {
                 self.get_full_package_name(short_name, cache)
