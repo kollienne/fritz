@@ -59,6 +59,25 @@ fn config_contains_key(node: &SyntaxNode, item: &String) -> bool {
     false
 }
 
+fn get_all_items_aux(node: &SyntaxNode) -> Option<Vec<String>> {
+    for child in node.children() {
+	if child.kind() == SyntaxKind::NODE_WITH {
+	    return get_all_items_aux(&child);
+	}
+	if child.kind() == SyntaxKind::NODE_LIST {
+	    let green = child.green().into_owned();
+	    let pkg_strings:Vec<String> = green.children().filter_map(|child| {
+		match child.as_node() {
+		    None => None,
+		    Some(node) => Some(node.to_string())
+		}
+	    }).collect();
+	    return Some(pkg_strings);
+	}
+    }
+    None
+}
+
 impl NixConfig {
     fn get_full_package_name(&self, short_name: &String, cache: &Cache) -> Option<String> {
         if cache.nixpkgs.contains_key(short_name) {
@@ -202,6 +221,10 @@ impl NixConfig {
         } else {
             None
         }
+    }
+
+    pub fn list_current_packages(&self) -> Option<Vec<String>> {
+	return get_all_items_aux(&self.current_packages);
     }
 }
 

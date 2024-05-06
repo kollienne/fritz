@@ -44,9 +44,11 @@ enum Commands {
     Rm {
         packages: Vec<String>,
     },
+    #[command(arg_required_else_help = true)]
     Search {
         strings: Vec<String>,
-    }
+    },
+    List
 }
 
 
@@ -208,6 +210,20 @@ fn add_packages(packages: &Vec<String>, app_config: &AppConfig, cli_args: &Cli, 
     }
 }
 
+fn list_packages(app_config: &AppConfig) {
+    let nix_config = get_nix_config(&app_config);
+    match nix_config.list_current_packages() {
+	Some(found_packages) => {
+	    for pkg in found_packages {
+	    println!("{}", pkg);
+	    }
+	}
+	None => {
+	    error!("no packages found.");
+	}
+    }
+}
+
 fn get_progress_bar(app_config: &AppConfig, cli_args: &Cli) -> ProgressBar {
     let mut num_steps = 1
 	+ app_config.hm_switch as u64
@@ -242,6 +258,10 @@ fn main() {
 	    for result in &matching_results[0..min(matching_results.len(),app_config.num_search_results)] {
 		pretty_print_result(result);
 	    }
-        }
+        },
+	Commands::List => {
+	    info!("listing fritz-managed packages");
+	    list_packages(&app_config);
+	}
     }
 }

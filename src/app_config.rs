@@ -30,7 +30,7 @@ pub struct AppConfig {
 impl Default for AppConfig {
     fn default() -> AppConfig {
 	let config_home = var("XDG_CONFIG_HOME").or_else(|_| var("HOME").map(|home| format!("{}/.config", home))).unwrap();
-	let package_config_file = format!("{}/home-manager/fritz-packages.nix", config_home);
+	let package_config_file = format!("{}/home-manager/fritz/packages.nix", config_home);
 	let cache_file_path = format!("{}/fritz/nixpkgs_cache.msgpack", config_home);
 	
         AppConfig {
