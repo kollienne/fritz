@@ -79,3 +79,8 @@ Options:
 | rm      | fritz rm nano          | Removes nano (or pkgs.nano if found) from config file. If configured, commits and pushes config file, then runs `home-manager switch`.                                                                                 |
 | search  | fritz search emacs gtk | Searches nixpkgs for packages containing *both* 'emacs' and 'gtk' in the package name and/or description. Results are weighted by the number of occurences of any search term.                                         |
 | list    | fritz list             | Prints all packages currently in config file.                                                                                                                                                                          |
+
+
+# Acknowledgements
+
+.nix file parsing is borrowed more-or-less as is from https://github.com/nix-community/rnix-parser
