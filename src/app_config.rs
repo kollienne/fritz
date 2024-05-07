@@ -39,8 +39,8 @@ impl Default for AppConfig {
             max_cache_age: "12h".to_string(),
             num_print: 10,
             num_search_results: 10,
-	    commit_change: true,
-	    push_change: true,
+	    commit_change: false,
+	    push_change: false,
 	    hm_switch: true
         }
     }
