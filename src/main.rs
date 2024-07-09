@@ -70,10 +70,10 @@ fn get_search_result_choice(results: &[SearchResult], max_length: usize) -> Opti
         .unwrap()
 }
 
-fn run_hm_update(progress_bar: &ProgressBar) {
+fn run_hm_update(progress_bar: &ProgressBar, app_config: &AppConfig) {
     info!("running home-manager switch");
     progress_bar.set_message("running home-manager switch");
-    let update_command = Command::new("home-manager").arg("switch").output();
+    let update_command = Command::new(&app_config.switch_base_command).arg("switch").output();
     match update_command {
 	Ok(x) => {
 	    info!("home-manager switch output: ");
@@ -162,7 +162,7 @@ fn remove_packages(packages: &Vec<String>, app_config: &AppConfig, cli_args: &Cl
     progress_bar.inc(1);
     if change_made && !cli_args.dry_run {
 	match app_config.hm_switch {
-	    true => { run_hm_update(progress_bar); },
+	    true => { run_hm_update(progress_bar, app_config); },
 	    false => { info!("home-manager switch is disabled") }
 	}
 	match app_config.commit_change {
@@ -193,7 +193,7 @@ fn add_packages(packages: &Vec<String>, app_config: &AppConfig, cli_args: &Cli, 
     let change_made = nix_config.add_packages(&packages, &cache, cli_args.dry_run);
     if change_made && !cli_args.dry_run {
 	match app_config.hm_switch {
-	    true => { run_hm_update(progress_bar); },
+	    true => { run_hm_update(progress_bar, app_config); },
 	    false => { info!("home-manager switch is disabled") }
 	}
 	match app_config.commit_change {

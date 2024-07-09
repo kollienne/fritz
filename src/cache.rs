@@ -1,7 +1,7 @@
 use serde::{Serialize, Deserialize};
 use rmp_serde;
 use duration_string::DurationString;
-use std::time::SystemTime;
+use std::{time::SystemTime, process::exit};
 use std::process::Command;
 use std::path::Path;
 use std::fs::File;
@@ -11,11 +11,23 @@ use log::{info,error};
 use std::collections::HashMap;
 use crate::app_config::AppConfig;
 use indicatif::ProgressBar;
+use current_platform::CURRENT_PLATFORM;
 
 const PB_NUM_STEPS:     u64 = 3;
 const PB_START:         u64 = 1;
 const PB_CACHE_FETCHED: u64 = 2;
 const PB_CACHE_PARSED:  u64 = 3;
+
+fn get_platform_string() -> String {
+    match &CURRENT_PLATFORM[..] {
+        "x86_64-unknown-linux-gnu" => "legacyPackages.x86_64-linux".to_string(),
+        "aarch64-apple-darwin" => "legacyPackages.aarch64-darwin".to_string(),
+        _ => {
+            error!("unknown platform: {}", CURRENT_PLATFORM);
+            exit(1);
+        }
+    }
+}
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct CacheEntry {
@@ -99,7 +111,8 @@ fn get_nixpkgs_json(progress_bar: Option<&ProgressBar>) -> Result<Cache, String>
     if progress_bar.is_some() { progress_bar.unwrap().set_position(PB_CACHE_FETCHED); }
     if progress_bar.is_some() { progress_bar.unwrap().set_message("parsing nixpkgs"); }
     info!("completed nix search command");
-    let search_output = search_output.replace("legacyPackages.x86_64-linux", "pkgs");
+
+    let search_output = search_output.replace(&get_platform_string(), "pkgs");
     let nixpkgs = serde_json::from_str(&search_output).unwrap();
     let nixpkgs = Cache { nixpkgs };
     if progress_bar.is_some() { progress_bar.unwrap().set_position(PB_CACHE_PARSED); }

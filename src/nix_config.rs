@@ -339,7 +339,7 @@ fn rmarr_aux(node: &SyntaxNode, items: &Vec<String>) -> Option<SyntaxNode> {
 
 
 pub fn get_current_packages(config_file: &String) -> Option<SyntaxNode> {
-    // let content = fs::read_to_string(config_file)?; 
+    // let content = fs::read_to_string(config_file)?;
     let content = match read_to_string(config_file) {
         Ok(content) => content,
         Err(err) => {
@@ -368,6 +368,7 @@ pub fn get_current_packages(config_file: &String) -> Option<SyntaxNode> {
     let packages = match nix_editor::parse::findattr(&configbase, &"home.packages") {
         Some(attr) => attr,
         None => {
+            eprintln!("home.packages not found in config");
             return None;
         }
     };

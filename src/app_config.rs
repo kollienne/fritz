@@ -25,6 +25,8 @@ pub struct AppConfig {
     pub push_change: bool,
     #[arg(short, long)]
     pub hm_switch: bool,
+    #[arg(short, long)]
+    pub switch_base_command: String,
 }
 
 impl Default for AppConfig {
@@ -39,9 +41,10 @@ impl Default for AppConfig {
             max_cache_age: "12h".to_string(),
             num_print: 10,
             num_search_results: 10,
-	    commit_change: false,
-	    push_change: false,
-	    hm_switch: true
+            commit_change: false,
+            push_change: false,
+            hm_switch: true,
+            switch_base_command: "home-manager".to_string(),
         }
     }
 }
