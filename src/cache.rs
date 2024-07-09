@@ -11,7 +11,7 @@ use log::{info,error};
 use std::collections::HashMap;
 use crate::app_config::AppConfig;
 use indicatif::ProgressBar;
-use current_platform::CURRENT_PLATFORM;
+use platform_info::{PlatformInfo,PlatformInfoAPI,UNameAPI};
 
 const PB_NUM_STEPS:     u64 = 3;
 const PB_START:         u64 = 1;
@@ -19,11 +19,16 @@ const PB_CACHE_FETCHED: u64 = 2;
 const PB_CACHE_PARSED:  u64 = 3;
 
 fn get_platform_string() -> String {
-    match &CURRENT_PLATFORM[..] {
-        "x86_64-unknown-linux-gnu" => "legacyPackages.x86_64-linux".to_string(),
-        "aarch64-apple-darwin" => "legacyPackages.aarch64-darwin".to_string(),
+    let info = PlatformInfo::new().expect("Unable to determine platform");
+    println!("{:?}", info);
+    let current_platform = info.sysname().to_string_lossy().to_lowercase();
+    let current_arch  = info.machine().to_string_lossy().to_lowercase();
+    let platform_string = format!("legacyPackages.{}-{}", current_arch, current_platform);
+    match &platform_string[..] {
+        "x86_64-linux-gnu" => "legacyPackages.x86_64-linux".to_string(),
+        "arm64-darwin" => "legacyPackages.aarch64-darwin".to_string(),
         _ => {
-            error!("unknown platform: {}", CURRENT_PLATFORM);
+            error!("unknown platform: {}", current_platform);
             exit(1);
         }
     }

@@ -292,12 +292,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "248e3bacc7dc6baa3b21e405ee045c3047101a49145e7e9eca583ab4c2ca5345"
 
 [[package]]
-name = "current_platform"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a74858bcfe44b22016cb49337d7b6f04618c58e5dbfdef61b06b8c434324a0bc"
-
-[[package]]
 name = "dialoguer"
 version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -397,7 +391,6 @@ version = "0.1.0"
 dependencies = [
  "clap 4.4.18",
  "colored",
- "current_platform",
  "dialoguer",
  "duration-string",
  "env_logger",
@@ -406,6 +399,7 @@ dependencies = [
  "itertools",
  "log",
  "nix-editor",
+ "platform-info",
  "regex",
  "rmp-serde",
  "rnix 0.11.0",
@@ -674,6 +668,16 @@ dependencies = [
  "proc-macro2-diagnostics",
  "quote",
  "syn",
+]
+
+[[package]]
+name = "platform-info"
+version = "2.0.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d5ff316b9c4642feda973c18f0decd6c8b0919d4722566f6e4337cce0dd88217"
+dependencies = [
+ "libc",
+ "winapi",
 ]
 
 [[package]]
