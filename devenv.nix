@@ -8,9 +8,10 @@
   packages = [
     pkgs.git
     pkgs.cargo
-    pkgs.gdb
+    pkgs.lldb
     pkgs.rust-analyzer
     pkgs.rustc
+    pkgs.libiconv
   ];
 
   # https://devenv.sh/scripts/
