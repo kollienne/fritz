@@ -21,3 +21,4 @@ rmp-serde = "1.2.0"
 rnix = "0.11.0"
 serde = { version = "1.0.197", features = ["derive"] }
 serde_json = "1.0.115"
+current_platform = "0.2.0"
