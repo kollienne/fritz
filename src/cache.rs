@@ -23,7 +23,7 @@ fn get_platform_string() -> String {
     println!("{:?}", info);
     let current_platform = info.sysname().to_string_lossy().to_lowercase();
     let current_arch  = info.machine().to_string_lossy().to_lowercase();
-    let platform_string = format!("legacyPackages.{}-{}", current_arch, current_platform);
+    let platform_string = format!("{}-{}", current_arch, current_platform);
     match &platform_string[..] {
         "x86_64-linux-gnu" => "legacyPackages.x86_64-linux".to_string(),
         "arm64-darwin" => "legacyPackages.aarch64-darwin".to_string(),
